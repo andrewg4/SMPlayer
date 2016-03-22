@@ -1,0 +1,52 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <ImageView
+        android:id="@+id/imageViewAlbumImage"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:contentDescription="album_icon"
+        android:paddingLeft="10dp"
+        android:paddingRight="10dp" />
+
+    <TextView
+        android:id="@+id/textViewSongName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_toRightOf="@+id/imageViewAlbumImage"
+        android:paddingLeft="10dp"
+        android:paddingTop="10dp"
+        android:ellipsize="marquee"
+        android:singleLine="true"
+        android:text="New Text"
+        android:textStyle="bold"
+        android:textColor="@color/colorListViewText"
+        android:textSize="16dp" />
+
+    <TextView
+        android:id="@+id/textViewArtist"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/textViewSongName"
+        android:layout_toRightOf="@+id/imageViewAlbumImage"
+        android:paddingLeft="10dp"
+        android:ellipsize="marquee"
+        android:singleLine="true"
+        android:text="New Text"
+        android:textColor="@color/colorListViewText"
+        android:textSize="14dp" />
+
+    <TextView
+        android:id="@+id/textViewDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingLeft="10dp"
+        android:layout_below="@+id/textViewArtist"
+        android:layout_toRightOf="@+id/imageViewAlbumImage"
+        android:textColor="@color/colorListViewText"
+        android:textStyle="bold"
+        android:text="New Text" />
+
+</RelativeLayout>

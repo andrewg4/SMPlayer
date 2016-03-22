@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="colorPrimary">#428ace</color>
+    <color name="colorPrimaryDark">#3C586E</color>
+    <color name="colorListViewText">#5b5b5b</color>
+    <color name="colorText">#ffffff</color>
+
+    <color name="albumColor">#67b3ff</color>
+</resources>

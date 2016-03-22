@@ -1,0 +1,27 @@
+<resources>
+    <string name="back">Back</string>
+    <string name="pause">Pause</string>
+    <string name="play">Play</string>
+
+    <string name="sort_by_title">Sort by title</string>
+    <string name="sort_by_album">Sort by album</string>
+    <string name="sort_by_artist">Sort by artist</string>
+    <string name="sort_by_time">Sort by time</string>
+    <string name="select_folder">Select Folder</string>
+    <string name="search_by">Search by</string>
+    <string name="search_title_hint">search title…</string>
+    <string name="search_title">Search Title</string>
+    <string name="search_album_hint">search album…</string>
+    <string name="search_album">Search Album</string>
+    <string name="search_artist_hint">search artist…</string>
+    <string name="search_artist">Search Artist</string>
+    <string name="text_empty">Nothing to show</string>
+    <string name="app_name">SM Player</string>
+
+    <string name="sort_by">Sort by</string>
+    <string name="empty_text">Select song from below to play</string>
+    <string name="player_button">Album Art Screen</string>
+    <string name="music_record">All music</string>
+    <string name="pick_current_folder">Pick current folder</string>
+    <string name="all_music">All Music</string>
+</resources>

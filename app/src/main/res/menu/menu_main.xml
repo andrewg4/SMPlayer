@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context=".MainActivity">
+
+    <item
+        android:id="@+id/all_music"
+        android:orderInCategory="100"
+        android:title="@string/all_music"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/settings"
+        android:icon="@android:drawable/ic_menu_more"
+        android:orderInCategory="101"
+        android:title="@string/sort_by"
+        app:showAsAction="always">
+        <menu android:checkableBehavior="single">
+
+            <item
+                android:id="@+id/action_sort"
+                android:icon="@drawable/sort_action"
+                android:orderInCategory="200"
+                android:title="@string/sort_by"
+                app:showAsAction="ifRoom">
+                <menu android:checkableBehavior="single">
+                    <item
+                        android:id="@+id/action_sort_title"
+                        android:icon="@drawable/sort_title"
+                        android:title="@string/sort_by_title" />
+                    <item
+                        android:id="@+id/action_sort_album"
+                        android:icon="@drawable/search_album"
+                        android:title="@string/sort_by_album" />
+                    <item
+                        android:id="@+id/action_sort_artist"
+                        android:icon="@drawable/sort_artist"
+                        android:title="@string/sort_by_artist" />
+                    <item
+                        android:id="@+id/action_sort_duration"
+                        android:icon="@drawable/sort_duration"
+                        android:title="@string/sort_by_time" />
+                </menu>
+            </item>
+
+            <item
+                android:id="@+id/folder_music"
+                android:icon="@drawable/music_folder"
+                android:orderInCategory="300"
+                android:title="@string/select_folder" />
+            <item
+                android:id="@+id/action_search"
+                android:icon="@drawable/music_search"
+                android:title="@string/search_by">
+                <menu android:checkableBehavior="single">
+                    <item
+                        android:id="@+id/action_search_title"
+                        android:hint="@string/search_title_hint"
+                        android:icon="@drawable/search_title"
+                        android:title="@string/search_title"
+                        app:actionViewClass="android.widget.SearchView"
+                        app:showAsAction="collapseActionView" />
+                    <item
+                        android:id="@+id/action_search_album"
+                        android:hint="@string/search_album_hint"
+                        android:icon="@drawable/search_album"
+                        android:title="@string/search_album"
+                        app:actionViewClass="android.widget.SearchView"
+                        app:showAsAction="collapseActionView" />
+                    <item
+                        android:id="@+id/action_search_artist"
+                        android:hint="@string/search_artist_hint"
+                        android:icon="@drawable/search_artist"
+                        android:title="@string/search_artist"
+                        app:actionViewClass="android.widget.SearchView"
+                        app:showAsAction="collapseActionView" />
+                </menu>
+            </item>
+
+        </menu>
+    </item>
+</menu>
