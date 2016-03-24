@@ -57,11 +57,11 @@ public class MediaFileAdapter extends ArrayAdapter<MediaFile> implements Filtera
         Log.e("MEDIA_FILE_POS", String.valueOf(position));
         MediaFile mediaFile = listOfSongs.get(position);
 
-        Bitmap albumArt = PlayerUtils.getAlbumart(context, mediaFile.getAlbumId());
+        Bitmap albumArt = PlayerUtils.getInstance().getAlbumart(context, mediaFile.getAlbumId());
         if (albumArt != null) {
             holder.imageViewAlbumImage.setImageBitmap(albumArt);
         } else {
-            holder.imageViewAlbumImage.setImageBitmap(PlayerUtils.getDefaultAlbumArt(context));
+            holder.imageViewAlbumImage.setImageBitmap(PlayerUtils.getInstance().getDefaultAlbumArt(context));
         }
         holder.textViewSongName.setText(mediaFile.toString());
         String artistTitleText = mediaFile.getAlbum() + " - " + mediaFile.getArtist();
@@ -98,7 +98,7 @@ public class MediaFileAdapter extends ArrayAdapter<MediaFile> implements Filtera
                     constraint = constraint.toString().toLowerCase();
 
                     // search songs by selected type
-                    switch (PlayerUtils.SEARCH_TYPE) {
+                    switch (PlayerUtils.getInstance().SEARCH_TYPE) {
                         case "TITLE":
                             for (MediaFile item : arrayList) {
                                 if (item.getTitle().toLowerCase().startsWith(constraint.toString())) {

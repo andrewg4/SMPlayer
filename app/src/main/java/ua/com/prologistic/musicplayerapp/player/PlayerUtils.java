@@ -12,7 +12,6 @@ import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
-import android.util.Log;
 
 import java.io.FileDescriptor;
 import java.util.ArrayList;
@@ -26,38 +25,62 @@ import ua.com.prologistic.musicplayerapp.service.MusicService;
  */
 
 public class PlayerUtils {
+
+    private static PlayerUtils instance;
+
+    private PlayerUtils() {}
+
+    // PlayerUtils Singleton
+    public static PlayerUtils getInstance() {
+        if (instance == null) {
+            instance = new PlayerUtils();
+        }
+        return instance;
+    }
+
+    MediaPlayerListener mediaPlayerListener;
+
+    public interface MediaPlayerListener {
+        void onSeekbarPositionChanged(int position);
+        int getDuration();
+        void playMusicFromUri(Context context, Uri uri);
+    }
+    public void setListener(MediaPlayerListener listener) {
+        mediaPlayerListener = listener;
+    }
+
     //List of Songs
-    public static List<MediaFile> SONGS_LIST = new ArrayList<>();
+    public List<MediaFile> SONGS_LIST = new ArrayList<>();
     //song number which is playing right now from SONGS_LIST
-    public static int SONG_NUMBER = 0;
+    public int SONG_NUMBER = 0;
     //song is playing or paused
-    public static boolean SONG_PAUSED = true;
+    public boolean SONG_PAUSED = true;
 
     // default value for search type
-    public static String SEARCH_TYPE = "TITLE";
+    public String SEARCH_TYPE = "TITLE";
 
-    //handler for song changed(next, previous) defined in service(SongService)
-    public static Handler SONG_CHANGE_HANDLER;
+    //handler for song changed(next, previous) defined in service(MusicService)
+    public Handler SONG_CHANGE_HANDLER;
 
-    //handler for song play/pause defined in SongService
-    public static Handler PLAY_PAUSE_HANDLER;
+    //handler for song play/pause defined in MusicService
+    public Handler PLAY_PAUSE_HANDLER;
 
     //handler for showing song progress defined in MainActivity
-    public static Handler SEEKBAR_HANDLER;
+    public Handler SEEKBAR_HANDLER;
 
-    public static void playControl(Context context) {
+    public void playControl(Context context) {
         sendMessage(context.getResources().getString(R.string.play));
     }
 
-    public static void pauseControl(Context context) {
+    public void pauseControl(Context context) {
         sendMessage(context.getResources().getString(R.string.pause));
     }
 
-    public static void playMusicFromActionPicker(Context context, Uri uri) {
-        MusicService.playMusicFromUri(context, uri);
+    public void playMusicFromActionPicker(Context context, Uri uri) {
+        mediaPlayerListener.playMusicFromUri(context, uri);
     }
 
-    public static void nextControl(Context context) {
+    public void nextControl(Context context) {
         boolean isRunning = isServiceRunning(MusicService.class.getName(), context);
         if (!isRunning)
             return;
@@ -73,14 +96,14 @@ public class PlayerUtils {
         SONG_PAUSED = false;
     }
 
-    public static void seekToAnyControl(Context context, int position) {
+    public void seekToAnyControl(Context context, int position) {
         boolean isRunning = isServiceRunning(MusicService.class.getName(), context);
         if (!isRunning)
             return;
-        MusicService.seekToAnyDirection(position);
+        mediaPlayerListener.onSeekbarPositionChanged(position);
     }
 
-    public static void previousControl(Context context) {
+    public void previousControl(Context context) {
         boolean isRunning = isServiceRunning(MusicService.class.getName(), context);
         if (!isRunning)
             return;
@@ -96,7 +119,7 @@ public class PlayerUtils {
         SONG_PAUSED = false;
     }
 
-    public static void sendMessage(String message) {
+    public void sendMessage(String message) {
         PLAY_PAUSE_HANDLER.sendMessage(PLAY_PAUSE_HANDLER.obtainMessage(0, message));
 
     }
@@ -114,7 +137,7 @@ public class PlayerUtils {
 
 
     // get all songs from device
-    public static List<MediaFile> listOfSongs(Context context) {
+    public List<MediaFile> listOfSongs(Context context) {
 
         Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
         Cursor c = context.getContentResolver().query(uri,
@@ -129,7 +152,7 @@ public class PlayerUtils {
 
 
     // read all music from specific folder
-    public static List<MediaFile> getSongsFromSpecificFolder(Context context, String[] where) {
+    public List<MediaFile> getSongsFromSpecificFolder(Context context, String[] where) {
 
         Cursor c = context.getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 null,
@@ -143,7 +166,7 @@ public class PlayerUtils {
 
 
     @NonNull
-    private static List<MediaFile> fetchDataFromCursor(Cursor c) {
+    private List<MediaFile> fetchDataFromCursor(Cursor c) {
         List<MediaFile> listOfSongs = new ArrayList<>();
         c.moveToFirst();
         while (c.moveToNext()) {
@@ -168,12 +191,11 @@ public class PlayerUtils {
             listOfSongs.add(mediaFile);
         }
         c.close();
-        Log.d(PlayerUtils.class.getName(), "list size: " + listOfSongs.size());
         return listOfSongs;
     }
 
     // get the album image by albumId
-    public static Bitmap getAlbumart(Context context, Long album_id) {
+    public Bitmap getAlbumart(Context context, Long album_id) {
         Bitmap bm = null;
         BitmapFactory.Options options = new BitmapFactory.Options();
         try {
@@ -189,7 +211,7 @@ public class PlayerUtils {
         return bm;
     }
 
-    public static Bitmap getDefaultAlbumArt(Context context) {
+    public Bitmap getDefaultAlbumArt(Context context) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         return BitmapFactory.decodeResource(context.getResources(), R.drawable.default_pic, options);
     }

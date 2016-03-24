@@ -8,17 +8,16 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnCompletionListener;
 import android.net.Uri;
+import android.os.Binder;
 import android.os.Handler;
 import android.os.Handler.Callback;
 import android.os.IBinder;
 import android.os.Message;
-import android.util.Log;
 
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import ua.com.prologistic.musicplayerapp.MainActivity;
 import ua.com.prologistic.musicplayerapp.R;
 import ua.com.prologistic.musicplayerapp.player.MediaFile;
 import ua.com.prologistic.musicplayerapp.player.PlayerUtils;
@@ -27,31 +26,54 @@ import ua.com.prologistic.musicplayerapp.player.PlayerUtils;
  * Created by Andriy Gulak on 17.03.2016.
  */
 
-public class MusicService extends Service implements AudioManager.OnAudioFocusChangeListener {
+public class MusicService extends Service implements AudioManager.OnAudioFocusChangeListener, PlayerUtils.MediaPlayerListener {
 
-    private static MediaPlayer mp;
+    public static final PlayerUtils PlayerController = PlayerUtils.getInstance();
+
+    MediaFileListener mListener;
+
+    public interface MediaFileListener {
+        void onMediaFileChanged();
+        void onPlayPauseActionChanged();
+    }
+
+    public void setListener(MediaFileListener listener) {
+        mListener = listener;
+    }
+
+    private final IBinder mBinder = new LocalBinder();
+
+    public class LocalBinder extends Binder {
+        public MusicService getService() {
+            return MusicService.this;
+        }
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
+    }
+
+    private MediaPlayer mp;
 
     // intercepts incoming and outgoing calls
     AudioManager mAudioManager;
 
-    private static Timer timer;
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return null;
-    }
+    private Timer timer;
+    private boolean isOncreate = true;
 
     @Override
     public void onCreate() {
         mp = new MediaPlayer();
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         mAudioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        PlayerController.setListener(this);
 
         timer = new Timer();
         mp.setOnCompletionListener(new OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
-                PlayerUtils.nextControl(getApplicationContext());
+                PlayerController.nextControl(getApplicationContext());
             }
         });
         super.onCreate();
@@ -63,7 +85,6 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         }
     }
 
-
     private final Handler handler = new Handler() {
         @Override
         public void handleMessage(Message msg) {
@@ -73,8 +94,8 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
                 i[0] = mp.getCurrentPosition();
                 i[1] = mp.getDuration();
                 i[2] = progress;
-                if (PlayerUtils.SEEKBAR_HANDLER != null) {
-                    PlayerUtils.SEEKBAR_HANDLER.sendMessage(PlayerUtils.SEEKBAR_HANDLER.obtainMessage(0, i));
+                if (PlayerController.SEEKBAR_HANDLER != null) {
+                    PlayerController.SEEKBAR_HANDLER.sendMessage(PlayerController.SEEKBAR_HANDLER.obtainMessage(0, i));
                 } else {
                     mp.stop();
                     mp = null;
@@ -84,29 +105,45 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
         }
     };
 
-    public static MediaPlayer getMp() {
-        return mp;
+    @Override
+    public void onSeekbarPositionChanged(int position) {
+        mp.seekTo(position);
+    }
+
+    @Override
+    public int getDuration() {
+        return mp.getDuration();
+    }
+
+    @Override
+    public void playMusicFromUri(Context context, Uri uri) {
+        mp = MediaPlayer.create(context, uri);
+        mp.setLooping(false);
+        mp.start();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         try {
-            if (PlayerUtils.SONGS_LIST.size() <= 0) {
-                PlayerUtils.SONGS_LIST = PlayerUtils.listOfSongs(getApplicationContext());
+            if (PlayerController.SONGS_LIST.size() <= 0) {
+                PlayerController.SONGS_LIST = PlayerController.listOfSongs(getApplicationContext());
             }
-            MediaFile data = PlayerUtils.SONGS_LIST.get(PlayerUtils.SONG_NUMBER);
+            MediaFile data = PlayerController.SONGS_LIST.get(PlayerController.SONG_NUMBER);
 
             String songPath = data.getPath();
-            playSong(songPath);
+            if (!isOncreate) {
+                playSong(songPath);
+                isOncreate = false;
+            }
 
-            PlayerUtils.SONG_CHANGE_HANDLER = new Handler(new Callback() {
+            PlayerController.SONG_CHANGE_HANDLER = new Handler(new Callback() {
                 @Override
                 public boolean handleMessage(Message msg) {
-                    MediaFile data = PlayerUtils.SONGS_LIST.get(PlayerUtils.SONG_NUMBER);
+                    MediaFile data = PlayerController.SONGS_LIST.get(PlayerController.SONG_NUMBER);
                     String songPath = data.getPath();
                     try {
                         playSong(songPath);
-                        MainActivity.changeUI();
+                        mListener.onMediaFileChanged();
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -114,23 +151,20 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
                 }
             });
 
-            PlayerUtils.PLAY_PAUSE_HANDLER = new Handler(new Callback() {
+            PlayerController.PLAY_PAUSE_HANDLER = new Handler(new Callback() {
                 @Override
                 public boolean handleMessage(Message msg) {
                     String message = (String) msg.obj;
                     if (mp == null)
                         return false;
                     if (message.equalsIgnoreCase(getResources().getString(R.string.play))) {
-                        PlayerUtils.SONG_PAUSED = false;
+                        PlayerController.SONG_PAUSED = false;
                         mp.start();
                     } else if (message.equalsIgnoreCase(getResources().getString(R.string.pause))) {
-                        PlayerUtils.SONG_PAUSED = true;
+                        PlayerController.SONG_PAUSED = true;
                         mp.pause();
                     }
-
-                    MainActivity.changeButton();
-
-                    Log.d("TAG", "TAG Pressed: " + message);
+                    mListener.onPlayPauseActionChanged();
                     return false;
                 }
             });
@@ -139,17 +173,6 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
             e.printStackTrace();
         }
         return START_STICKY;
-    }
-
-
-    public static void seekToAnyDirection(int position) {
-        mp.seekTo(position);
-    }
-
-    public static void playMusicFromUri(Context context, Uri uri) {
-        mp = MediaPlayer.create(context, uri);
-        mp.setLooping(false);
-        mp.start();
     }
 
     @Override
@@ -179,10 +202,10 @@ public class MusicService extends Service implements AudioManager.OnAudioFocusCh
     public void onAudioFocusChange(int focusChange) {
         if (focusChange <= 0) {
             //LOSS -> PAUSE
-            PlayerUtils.pauseControl(getApplicationContext());
+            PlayerController.pauseControl(getApplicationContext());
         } else {
             //GAIN -> PLAY
-            PlayerUtils.playControl(getApplicationContext());
+            PlayerController.playControl(getApplicationContext());
         }
     }
 }

@@ -1,14 +1,17 @@
 package ua.com.prologistic.musicplayerapp;
 
 import android.app.SearchManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -40,19 +43,24 @@ import ua.com.prologistic.musicplayerapp.utils.MediaFileComparator;
  * Created by Andriy Gulak on 17.03.2016.
  */
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements MusicService.MediaFileListener {
+
+    public static final PlayerUtils PlayerController = PlayerUtils.getInstance();
 
     public static final int PICK_FOLDER_REQUEST = 8;
     private MediaFileAdapter mediaFileAdapter = null;
-    private static TextView playingSong;
-    private static Button btnPause, btnPlay, btnNext, btnPrevious;
+    private TextView playingSong;
+    private Button btnPause, btnPlay, btnNext, btnPrevious;
     private Button btnStop;
-    private static LinearLayout linearLayoutPlayingSong;
+    private LinearLayout linearLayoutPlayingSong;
     private ListView mediaListView;
     private SeekBar seekbar;
     private TextView textBufferDuration, textDuration;
-    private static ImageView imageViewAlbumArt;
-    private static Context context;
+    private ImageView imageViewAlbumArt;
+    private Context context;
+
+    MusicService mService;
+    boolean mBound = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,7 +68,11 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         context = MainActivity.this;
         init();
-        handleAudioFromOpenWithPopup();
+
+        if (!PlayerUtils.isServiceRunning(MusicService.class.getName(), getApplicationContext())) {
+            Intent i = new Intent(getApplicationContext(), MusicService.class);
+            startService(i);
+        }
     }
 
     private void init() {
@@ -68,14 +80,14 @@ public class MainActivity extends AppCompatActivity {
         setListeners();
         playingSong.setSelected(true);
         seekbar.getProgressDrawable().setColorFilter(ContextCompat.getColor(context, R.color.colorText), PorterDuff.Mode.SRC_IN);
-        if (PlayerUtils.SONGS_LIST.size() <= 0) {
-            PlayerUtils.SONGS_LIST = PlayerUtils.listOfSongs(getApplicationContext());
+        if (PlayerController.SONGS_LIST.size() <= 0) {
+            PlayerController.SONGS_LIST = PlayerController.listOfSongs(getApplicationContext());
         }
         initAdapter();
     }
 
     private void initAdapter() {
-        mediaFileAdapter = new MediaFileAdapter(this, R.layout.custom_list, PlayerUtils.SONGS_LIST);
+        mediaFileAdapter = new MediaFileAdapter(this, R.layout.custom_list, PlayerController.SONGS_LIST);
         mediaListView.setAdapter(mediaFileAdapter);
         mediaListView.setTextFilterEnabled(true);
         mediaListView.setFastScrollEnabled(true);
@@ -100,18 +112,41 @@ public class MainActivity extends AppCompatActivity {
         return AnimationUtils.loadAnimation(this, R.anim.button_anim);
     }
 
+    // defines callbacks for service binding, passed to bindService()
+    private ServiceConnection mConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName className,
+                                       IBinder service) {
+            MusicService.LocalBinder binder = (MusicService.LocalBinder) service;
+            mService = binder.getService();
+            mService.setListener(MainActivity.this);
+            mBound = true;
+
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            mBound = false;
+            mService = null;
+
+        }
+    };
+
+
     private void setListeners() {
         mediaListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View item, int position, long id) {
-                PlayerUtils.SONG_PAUSED = false;
-                PlayerUtils.SONG_NUMBER = position;
+                PlayerController.SONG_PAUSED = false;
+                PlayerController.SONG_NUMBER = position;
                 boolean isServiceRunning = PlayerUtils.isServiceRunning(MusicService.class.getName(), getApplicationContext());
                 if (!isServiceRunning) {
                     Intent i = new Intent(getApplicationContext(), MusicService.class);
                     startService(i);
                 } else {
-                    PlayerUtils.SONG_CHANGE_HANDLER.sendMessage(PlayerUtils.SONG_CHANGE_HANDLER.obtainMessage());
+                    PlayerController.SONG_CHANGE_HANDLER.sendMessage(
+                            PlayerController.SONG_CHANGE_HANDLER.obtainMessage());
                 }
                 updateUI();
                 changeButton();
@@ -121,13 +156,13 @@ public class MainActivity extends AppCompatActivity {
         btnPlay.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                PlayerUtils.playControl(getApplicationContext());
+                PlayerController.playControl(getApplicationContext());
             }
         });
         btnPause.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                PlayerUtils.pauseControl(getApplicationContext());
+                PlayerController.pauseControl(getApplicationContext());
             }
         });
         btnNext.setOnClickListener(new View.OnClickListener() {
@@ -135,7 +170,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 v.startAnimation(setButtonAnimation());
-                PlayerUtils.nextControl(getApplicationContext());
+                PlayerController.nextControl(getApplicationContext());
             }
         });
         btnPrevious.setOnClickListener(new View.OnClickListener() {
@@ -143,14 +178,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 v.startAnimation(setButtonAnimation());
-                PlayerUtils.previousControl(getApplicationContext());
+                PlayerController.previousControl(getApplicationContext());
             }
         });
         btnStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent i = new Intent(getApplicationContext(), MusicService.class);
-                stopService(i);
+                if (PlayerUtils.isServiceRunning(MusicService.class.getName(), getApplicationContext())) {
+                    PlayerController.pauseControl(getApplicationContext());
+                }
                 linearLayoutPlayingSong.setVisibility(View.GONE);
             }
         });
@@ -162,12 +198,12 @@ public class MainActivity extends AppCompatActivity {
                     // clicked position on the seekBar
                     int currentSeekBarPosition = seekBar.getProgress();
                     // 1% of song duration = song duration / 100%
-                    int onePercentOfSongDuration = (MusicService.getMp().getDuration() / 100);
+                    int onePercentOfSongDuration = (mService.getDuration() / 100);
                     // associate song duration with clicked position on the seekBar
                     int changedPosition = currentSeekBarPosition * onePercentOfSongDuration;
 
                     // seek to selected position
-                    PlayerUtils.seekToAnyControl(getApplicationContext(), changedPosition);
+                    PlayerController.seekToAnyControl(getApplicationContext(), changedPosition);
                 }
             }
 
@@ -183,8 +219,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        if (mBound) {
+            unbindService(mConnection);
+        }
+        super.onPause();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        Intent i = new Intent(getApplicationContext(), MusicService.class);
+        bindService(i, mConnection, Context.BIND_AUTO_CREATE);
+
+        handleAudioFromOpenWithPopup();
 
         boolean isServiceRunning = PlayerUtils.isServiceRunning(MusicService.class.getName(), getApplicationContext());
         if (isServiceRunning) {
@@ -193,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
             linearLayoutPlayingSong.setVisibility(View.GONE);
         }
         changeButton();
-        PlayerUtils.SEEKBAR_HANDLER = new Handler() {
+        PlayerController.SEEKBAR_HANDLER = new Handler() {
             @Override
             public void handleMessage(Message msg) {
 
@@ -205,22 +253,22 @@ public class MainActivity extends AppCompatActivity {
         };
     }
 
-    public static void updateUI() {
-        MediaFile mediaFile = PlayerUtils.SONGS_LIST.get(PlayerUtils.SONG_NUMBER);
+    public void updateUI() {
+        MediaFile mediaFile = PlayerController.SONGS_LIST.get(PlayerController.SONG_NUMBER);
         String nowPlayingTitleText = mediaFile.getTitle() + " " + mediaFile.getArtist() + "-" + mediaFile.getAlbum();
         playingSong.setText(nowPlayingTitleText);
-        Bitmap albumArt = PlayerUtils.getAlbumart(context, mediaFile.getAlbumId());
+        Bitmap albumArt = PlayerController.getAlbumart(context, mediaFile.getAlbumId());
         if (albumArt != null) {
             imageViewAlbumArt.setBackgroundDrawable(new BitmapDrawable(Resources.getSystem(), albumArt));
         } else {
-            Bitmap defaultAlbumArt = PlayerUtils.getDefaultAlbumArt(context);
+            Bitmap defaultAlbumArt = PlayerController.getDefaultAlbumArt(context);
             imageViewAlbumArt.setBackgroundDrawable(new BitmapDrawable(Resources.getSystem(), defaultAlbumArt));
         }
         linearLayoutPlayingSong.setVisibility(View.VISIBLE);
     }
 
-    public static void changeButton() {
-        if (PlayerUtils.SONG_PAUSED) {
+    public void changeButton() {
+        if (PlayerController.SONG_PAUSED) {
             btnPause.setVisibility(View.GONE);
             btnPlay.setVisibility(View.VISIBLE);
         } else {
@@ -229,7 +277,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public static void changeUI() {
+    public void changeUI() {
         updateUI();
         changeButton();
     }
@@ -332,7 +380,7 @@ public class MainActivity extends AppCompatActivity {
         }
         // fetch all music from device
         if (id == R.id.all_music) {
-            PlayerUtils.SONGS_LIST = PlayerUtils.listOfSongs(getApplicationContext());
+            PlayerController.SONGS_LIST = PlayerController.listOfSongs(getApplicationContext());
             initAdapter();
 
             return true;
@@ -340,46 +388,46 @@ public class MainActivity extends AppCompatActivity {
 
         // search songs by title
         if (id == R.id.action_search_title) {
-            PlayerUtils.SEARCH_TYPE = "TITLE";
+            PlayerController.SEARCH_TYPE = "TITLE";
 
             return true;
         }
         // search songs by artist
         if (id == R.id.action_search_artist) {
-            PlayerUtils.SEARCH_TYPE = "ARTIST";
+            PlayerController.SEARCH_TYPE = "ARTIST";
 
             return true;
         }
         // search songs by album
         if (id == R.id.action_search_album) {
-            PlayerUtils.SEARCH_TYPE = "ALBUM";
+            PlayerController.SEARCH_TYPE = "ALBUM";
 
             return true;
         }
 
         if (id == R.id.action_sort_title) {
-            MediaFileComparator.sortByTitle(PlayerUtils.SONGS_LIST);
+            MediaFileComparator.sortByTitle(PlayerController.SONGS_LIST);
             MediaFileAdapter mediaAdapter = (MediaFileAdapter) mediaListView.getAdapter();
             mediaAdapter.notifyDataSetChanged();
 
             return true;
         }
         if (id == R.id.action_sort_album) {
-            MediaFileComparator.sortByAlbum(PlayerUtils.SONGS_LIST);
+            MediaFileComparator.sortByAlbum(PlayerController.SONGS_LIST);
             MediaFileAdapter mediaAdapter = (MediaFileAdapter) mediaListView.getAdapter();
             mediaAdapter.notifyDataSetChanged();
 
             return true;
         }
         if (id == R.id.action_sort_artist) {
-            MediaFileComparator.sortByArtist(PlayerUtils.SONGS_LIST);
+            MediaFileComparator.sortByArtist(PlayerController.SONGS_LIST);
             MediaFileAdapter mediaAdapter = (MediaFileAdapter) mediaListView.getAdapter();
             mediaAdapter.notifyDataSetChanged();
 
             return true;
         }
         if (id == R.id.action_sort_duration) {
-            MediaFileComparator.sortByDuration(PlayerUtils.SONGS_LIST);
+            MediaFileComparator.sortByDuration(PlayerController.SONGS_LIST);
             MediaFileAdapter mediaAdapter = (MediaFileAdapter) mediaListView.getAdapter();
             mediaAdapter.notifyDataSetChanged();
 
@@ -403,12 +451,12 @@ public class MainActivity extends AppCompatActivity {
                 Log.i("PICKER_FOLDER_WHERE_TAG", pickedFolder);
 
                 // reinit music list and adapter with data from specific folder
-                List<MediaFile> songsFromSpecificFolder = PlayerUtils.getSongsFromSpecificFolder(
+                List<MediaFile> songsFromSpecificFolder = PlayerController.getSongsFromSpecificFolder(
                         getApplicationContext(), new String[]{pickedFolder}
                 );
                 if (songsFromSpecificFolder.size() != 0) {
-                    PlayerUtils.SONGS_LIST = songsFromSpecificFolder;
-                    PlayerUtils.SONG_NUMBER = 0;
+                    PlayerController.SONGS_LIST = songsFromSpecificFolder;
+                    PlayerController.SONG_NUMBER = 0;
                     initAdapter();
                 }
             }
@@ -424,7 +472,7 @@ public class MainActivity extends AppCompatActivity {
         // if it's audio action view
         if (action != null && action.equals("android.intent.action.VIEW")) {
             // play song
-            PlayerUtils.playMusicFromActionPicker(this, intent.getData());
+            PlayerController.playMusicFromActionPicker(this, intent.getData());
         }
     }
 
@@ -436,4 +484,13 @@ public class MainActivity extends AppCompatActivity {
         return sTag + lastSubfolder + sTag;
     }
 
+    @Override
+    public void onMediaFileChanged() {
+        changeUI();
+    }
+
+    @Override
+    public void onPlayPauseActionChanged() {
+        changeButton();
+    }
 }
