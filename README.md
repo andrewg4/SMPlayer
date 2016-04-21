@@ -1,2 +1,2 @@
 # SMPlayer
-Simple Media Player - тестовое задание на вакансию Android Developer в компанию MobiDev
+SMPlayer - Simple Media Player for Android with playlists, search and sorting
