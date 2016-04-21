@@ -1,2 +1,2 @@
 # SMPlayer
-SMPlayer - Simple Media Player for Android with playlists, search and sorting
+SMPlayer - Simple Music Player for Android with playlists, search and sorting
